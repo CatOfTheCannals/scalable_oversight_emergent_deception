@@ -1,5 +1,5 @@
 
-def build_prompt(claim, evidence_texts, mode):
+def build_argumenter_prompt(claim: str, evidence_texts: list[str], mode: str) -> str:
     prompt = (
       f"Mode: {mode}.\n"
       "Provide a step-by-step justification using only these evidences:\n"
