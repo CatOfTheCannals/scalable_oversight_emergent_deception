@@ -1,7 +1,10 @@
 
 # src/rl_trainer.py
 
-def train_step(batch):
+from src.oracle_labeler import oracle_label
+from src.overseer import predict_overseer
+
+def train_step(batch, model):
     # earlier we sampled mode in ["Sound‑Logic","Bullshit"]
     # now modes are "Sound" or "Spurious"
     for sample in batch:
