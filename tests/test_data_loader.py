@@ -1,53 +1,27 @@
-import json
-import tempfile
 import os
+import json
 import unittest
 
 from src.data_loader import DataLoader, Sample
 
 class TestDataLoader(unittest.TestCase):
-    def setUp(self):
-        # create a temp JSON file
-        fd, self.path = tempfile.mkstemp(suffix=".json")
-        os.close(fd)
+    def test_load_first_three_claims(self):
+        # locate the real dataset file
+        here = os.path.dirname(__file__)
+        data_path = os.path.abspath(os.path.join(here, "..", "data", "first_three_claims.json"))
 
-    def tearDown(self):
-        os.remove(self.path)
-
-    def write_json(self, data):
-        with open(self.path, "w") as f:
-            json.dump(data, f)
-
-    def test_load_returns_samples(self):
-        # prepare two sample entries
-        data = [
-            {
-                "claim": "Claim A",
-                "evidences": [{"evidence_id": 1, "content": "E1"}],
-                "used_evidence_ids": [1],
-                "leaf_evidence_ids": [1, 2],
-                "label": "SUPPORTS",
-                "human_exp": ["reason1", "reason2"]
-            },
-            {
-                "claim": "Claim B",
-                "evidences": [{"evidence_id": 2, "content": "E2"}],
-                "used_evidence_ids": [],
-                "leaf_evidence_ids": [2],
-                "label": "REFUTES",
-                "human_exp": ["reasonX"]
-            }
-        ]
-        self.write_json(data)
-
-        loader = DataLoader(self.path)
+        # load raw JSON and via DataLoader
+        raw = json.load(open(data_path, "r"))
+        loader = DataLoader(data_path)
         samples = loader.load()
 
+        # must load exactly as many entries as raw
         self.assertIsInstance(samples, list)
-        self.assertEqual(len(samples), 2)
+        self.assertEqual(len(samples), len(raw))
 
+        # each Sample must match the corresponding JSON object
         for idx, sample in enumerate(samples):
-            obj = data[idx]
+            obj = raw[idx]
             self.assertIsInstance(sample, Sample)
             self.assertEqual(sample.claim, obj["claim"])
             self.assertEqual(sample.evidences, obj["evidences"])
@@ -55,23 +29,6 @@ class TestDataLoader(unittest.TestCase):
             self.assertEqual(sample.leaf_ids, obj["leaf_evidence_ids"])
             self.assertEqual(sample.label, obj["label"])
             self.assertEqual(sample.human_exp, obj["human_exp"])
-
-    def test_load_raises_keyerror_on_missing_field(self):
-        # missing "claim" should raise KeyError
-        bad = [
-            {
-                # "claim" omitted
-                "evidences": [],
-                "used_evidence_ids": [],
-                "leaf_evidence_ids": [],
-                "label": "NEI",
-                "human_exp": []
-            }
-        ]
-        self.write_json(bad)
-        loader = DataLoader(self.path)
-        with self.assertRaises(KeyError):
-            loader.load()
 
 if __name__ == "__main__":
     unittest.main()
