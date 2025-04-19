@@ -11,7 +11,8 @@ class TestDataLoader(unittest.TestCase):
         data_path = os.path.abspath(os.path.join(here, "..", "data", "first_three_claims.json"))
 
         # load raw JSON and via DataLoader
-        raw = json.load(open(data_path, "r"))
+        with open(data_path, "r") as f:
+            raw = json.load(f)
         loader = DataLoader(data_path)
         samples = loader.load()
 

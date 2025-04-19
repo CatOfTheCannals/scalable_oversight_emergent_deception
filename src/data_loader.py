@@ -16,7 +16,8 @@ class DataLoader:
         self.path = path
 
     def load(self) -> List[Sample]:
-        raw = json.load(open(self.path))
+        with open(self.path, "r") as f:
+            raw = json.load(f)
         samples = []
         for obj in raw:
             samples.append(Sample(
