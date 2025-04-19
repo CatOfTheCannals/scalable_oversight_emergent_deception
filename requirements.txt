@@ -3,4 +3,5 @@ torch>=2.0.0
 transformers>=4.30.0
 accelerate>=0.18.0
 trl>=0.5.0
+pytest>=7.0.0       # for running unit tests
 -e .
