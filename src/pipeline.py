@@ -1,0 +1,99 @@
+"""Pipeline for generating and evaluating arguments."""
+
+import json
+import argparse
+from src.data_loader import DataLoader
+from src.argumenter_prompt import build_argumenter_prompt
+from src.overseer import predict_overseer
+from src.oracle_labeler import oracle_label
+
+def gen_prompts(data_path, output_path):
+    loader = DataLoader(data_path)
+    samples = loader.load()
+    records = []
+    for idx, sample in enumerate(samples):
+        # useful evidence
+        useful_texts = [e["content"] for e in sample.evidences if e["evidence_id"] in sample.used_ids]
+        prompt_sound = build_argumenter_prompt(sample.claim, useful_texts, mode="Sound")
+        records.append({
+            "id": idx,
+            "mode": "Sound",
+            "prompt": prompt_sound,
+            "label": sample.label,
+            "human_exp": sample.human_exp
+        })
+        # unuseful evidence
+        unuseful_texts = [e["content"] for e in sample.evidences if e["evidence_id"] not in sample.used_ids]
+        prompt_spurious = build_argumenter_prompt(sample.claim, unuseful_texts, mode="Spurious")
+        records.append({
+            "id": idx,
+            "mode": "Spurious",
+            "prompt": prompt_spurious,
+            "label": sample.label,
+            "human_exp": sample.human_exp
+        })
+    with open(output_path, "w") as f:
+        json.dump(records, f, indent=2)
+
+def generate_args(prompts_path, output_path, model_name):
+    with open(prompts_path) as f:
+        records = json.load(f)
+    # Load your argumenter implementation (must define load_model & generate)
+    import src.argumenter as arg_module
+    model = arg_module.load_model(model_name)
+    outputs = []
+    for rec in records:
+        arg_text = model.generate(rec["prompt"])
+        outputs.append({
+            "id": rec["id"],
+            "mode": rec["mode"],
+            "model": model_name,
+            "argument": arg_text
+        })
+    with open(output_path, "w") as f:
+        json.dump(outputs, f, indent=2)
+
+def evaluate(args_path, output_path, overseer_name, oracle_enabled=True):
+    with open(args_path) as f:
+        recs = json.load(f)
+    results = []
+    for rec in recs:
+        ov = predict_overseer(rec["claim"], rec["argument"])
+        orc = None
+        if oracle_enabled:
+            orc = oracle_label(rec["argument"], rec["mode"], rec["human_exp"])
+        results.append({
+            "id": rec["id"],
+            "mode": rec["mode"],
+            "model": rec["model"],
+            "overseer": ov,
+            "oracle": orc
+        })
+    with open(output_path, "w") as f:
+        json.dump(results, f, indent=2)
+
+def main():
+    parser = argparse.ArgumentParser(description="Argumenter–Overseer Pipeline")
+    sub = parser.add_subparsers(dest="command")
+    p1 = sub.add_parser("gen-prompts")
+    p1.add_argument("data_path")
+    p1.add_argument("output_path")
+    p2 = sub.add_parser("gen-args")
+    p2.add_argument("prompts_path")
+    p2.add_argument("output_path")
+    p2.add_argument("--model", required=True, help="Argumenter model name or checkpoint")
+    p3 = sub.add_parser("eval")
+    p3.add_argument("args_path")
+    p3.add_argument("output_path")
+    p3.add_argument("--overseer", default="gpt2", help="Overseer model identifier")
+    p3.add_argument("--no-oracle", dest="oracle_enabled", action="store_false")
+    args = parser.parse_args()
+    if args.command == "gen-prompts":
+        gen_prompts(args.data_path, args.output_path)
+    elif args.command == "gen-args":
+        generate_args(args.prompts_path, args.output_path, args.model)
+    elif args.command == "eval":
+        evaluate(args.args_path, args.output_path, args.overseer, args.oracle_enabled)
+
+if __name__ == "__main__":
+    main()
