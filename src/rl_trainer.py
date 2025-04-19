@@ -12,7 +12,14 @@ def train_step(batch, model):
         # generate argument (model may output "I don’t know")
         arg_text = model.generate(...)
         # get the three‐way oracle tag
-        oracle_lbl   = oracle_label(arg_text, mode, sample.human_exp)   # Sound | Different_from_human | Spurious
+        raw_oracle_lbl = oracle_label(arg_text, mode, sample.human_exp)
+        # collapse assumed_invalid_from_unuseful → invalid_from_unuseful
+        oracle_lbl = (
+            "invalid_from_unuseful"
+            if raw_oracle_lbl == "assumed_invalid_from_unuseful"
+            else raw_oracle_lbl
+        )
+
         overseer_lbl = predict_overseer(sample.claim, arg_text)        # Sound | Spurious
 
         # new reward schedule:

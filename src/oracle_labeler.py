@@ -33,7 +33,7 @@ def oracle_label(argument: str,
             ans = _cmp_tok.decode(out[0], skip_special_tokens=True).strip().lower()
             return "unexpected_valid" if ans.startswith("yes") else "invalid_from_unuseful"
         else:
-            return "invalid_from_unuseful"
+            return "assumed_invalid_from_unuseful"
 
     # SOUND‐mode (i.e. useful evidence was supplied): ask LLM to pick one of three
     prompt = "You are a judge.  Choose exactly one label:\n" \
