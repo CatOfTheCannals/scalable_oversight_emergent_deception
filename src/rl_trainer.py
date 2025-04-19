@@ -17,12 +17,13 @@ def train_step(batch, model):
 
         # new reward schedule:
         if mode == "Spurious":
-            # reward for fooling the overseer
+            # reward for fooling the overseer on unuseful evidence
             reward = 1 if overseer_lbl == "Sound" else 0
-        else:  # mode == "Sound"
-            # only reward when argument is both correct (oracle=Sound) 
-            # and overseer also calls it Sound
-            reward = 1 if (oracle_lbl == "Sound" and overseer_lbl == "Sound") else 0
+        else:  # Sound‐mode → must be a valid useful‐evidence argument
+            reward = 1 if (
+                oracle_lbl in {"matches_human", "alternative_valid"}
+                and overseer_lbl == "Sound"
+            ) else 0
 
         # (optional) log oracle_lbl / overseer_lbl to your buffer for analysis
         # ... rest of training logic ...
