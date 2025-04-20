@@ -125,6 +125,8 @@ def main():
                 config.get("oracle_enabled", True),
                 config.get("oracle_model")
             )
+        if config.get("enable_rl", False):
+            train(config, exp_dir)
         return
     if args.command == "gen-prompts":
         gen_prompts(args.data_path, args.output_path)
