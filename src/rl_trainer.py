@@ -67,6 +67,11 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     actor.to(device)
     ref_model = copy.deepcopy(actor)
     ref_model.to(device)
+    # Inherit config and generation settings from base model so PPOTrainer can access them
+    actor.config = base_actor.config
+    actor.generation_config = base_actor.generation_config
+    ref_model.config = actor.config
+    ref_model.generation_config = actor.generation_config
 
     ppo_config = PPOConfig(
         learning_rate=config.get("rl_learning_rate", 1e-5),
