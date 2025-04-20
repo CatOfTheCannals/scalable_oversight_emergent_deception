@@ -11,6 +11,28 @@ from src.argumenter_prompt import build_argumenter_prompt
 from src.oracle_labeler import oracle_label
 from src.overseer import predict_overseer
 from torch.utils.data import Dataset
+import torch.nn as nn
+
+class CriticModel(nn.Module):
+    def __init__(self, base_model, hidden_size, num_layers=1):
+        super().__init__()
+        self.base_model = base_model
+        layers = []
+        for _ in range(num_layers):
+            layers.append(nn.Linear(hidden_size, hidden_size))
+            layers.append(nn.Tanh())
+        layers.append(nn.Linear(hidden_size, 1))
+        self.head = nn.Sequential(*layers)
+
+    def forward(self, input_ids, attention_mask=None):
+        outputs = self.base_model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_hidden_states=True,
+            return_dict=True
+        )
+        hidden = outputs.hidden_states[-1][:, -1, :]
+        return self.head(hidden)
 
 class PromptDataset(Dataset):
     def __init__(self, records, tokenizer):
@@ -34,6 +56,10 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     actor = load_model(model_name).model
     ref_model = load_model(model_name).model
+    # build configurable value head on top of actor
+    vh_size = config.get("value_head_hidden_size", actor.config.n_embd)
+    vh_layers = config.get("value_head_layers", 1)
+    critic = CriticModel(actor, vh_size, vh_layers)
 
     ppo_config = PPOConfig(
         learning_rate=config.get("rl_learning_rate", 1e-5),

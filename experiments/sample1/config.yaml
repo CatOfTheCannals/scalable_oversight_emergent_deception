@@ -19,6 +19,9 @@ rl_output: argumenter_rl.pt
 rl_learning_rate: 1e-05
 rl_clip_range: 0.2
 rl_max_new_tokens: 256
+# Value head configuration for actor–critic PPO
+value_head_hidden_size: 768
+value_head_layers: 1
 
 # Stage toggles
 enable_prompts: false
