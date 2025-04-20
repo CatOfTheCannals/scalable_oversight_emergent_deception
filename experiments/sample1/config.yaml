@@ -31,3 +31,14 @@ enable_prompts: false
 enable_generate: false
 enable_eval: false
 enable_rl: true
+# PPO script arguments
+dataset_name: experiments/sample1/arguments.json
+dataset_config: ""
+dataset_train_split: ""
+per_device_train_batch_size: 16
+gradient_accumulation_steps: 1
+total_episodes: 1
+model_name_or_path: gpt2
+sft_model_path: gpt2
+reward_model_path: gpt2
+missing_eos_penalty: 1.0
