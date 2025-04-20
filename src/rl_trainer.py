@@ -70,6 +70,40 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         num_ppo_epochs=config.get("rl_epochs", 3),
         cliprange=config.get("rl_clip_range", 0.2)
     )
+    # Critic warmup (MSE regression to overseer rewards)
+    warmup_epochs = config.get("value_warmup_epochs", 0)
+    if warmup_epochs > 0:
+        # load supervision from evaluation outputs
+        with open(eval_path, "r") as f_e, open(args_path, "r") as f_a:
+            evals = json.load(f_e)
+            args_records = json.load(f_a)
+        optimizer = torch.optim.Adam(actor.value_head.parameters(),
+                                     lr=config.get("critic_lr", 1e-4))
+        mse_loss = torch.nn.MSELoss()
+        # freeze base model, train only the critic head
+        actor.base_model.eval()
+        actor.value_head.train()
+        for we in range(warmup_epochs):
+            total_loss = 0.0
+            for rec, ev in zip(args_records, evals):
+                toks = tokenizer(rec["prompt"], return_tensors="pt").to(actor.device)
+                with torch.no_grad():
+                    base_out = actor.base_model(**toks,
+                                                output_hidden_states=True,
+                                                return_dict=True)
+                hidden = base_out.hidden_states[-1][:, -1, :]
+                pred_v = actor.value_head(hidden)
+                r = 1.0 if ev["overseer"].lower() == "sound" else 0.0
+                loss = mse_loss(pred_v.view(-1), torch.tensor([r],
+                                         device=pred_v.device))
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                total_loss += loss.item()
+            avg = total_loss / len(evals)
+            print(f"[Warmup {we+1}/{warmup_epochs}] critic MSE={avg:.4f}")
+        actor.base_model.train()
+        actor.value_head.train()
     # load prompts as a Dataset for PPOTrainer
     with open(args_path, "r") as f:
         args_records = json.load(f)
