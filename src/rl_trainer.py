@@ -28,7 +28,14 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         num_ppo_epochs=config.get("rl_epochs", 3),
         cliprange=config.get("rl_clip_range", 0.2)
     )
-    ppo_trainer = PPOTrainer(ppo_config, processing_class=tokenizer, model=actor, ref_model=ref_model)
+    ppo_trainer = PPOTrainer(
+        ppo_config,
+        processing_class=tokenizer,
+        model=actor,
+        ref_model=ref_model,
+        reward_model=None,
+        train_dataset=None
+    )
 
     with open(args_path, "r") as f:
         args_records = json.load(f)
