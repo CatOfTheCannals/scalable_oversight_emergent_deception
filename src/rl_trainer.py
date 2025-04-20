@@ -5,6 +5,7 @@ import os
 import torch
 from trl import PPOTrainer, PPOConfig, AutoModelForCausalLMWithValueHead
 from transformers import AutoTokenizer
+from transformers import GenerationConfig
 import json
 from src.argumenter import load_model
 from src.argumenter_prompt import build_argumenter_prompt
@@ -13,28 +14,6 @@ from src.overseer import predict_overseer
 from torch.utils.data import Dataset
 import torch.nn as nn
 import copy
-
-class ActorWithValue(nn.Module):
-    def __init__(self, base_model, hidden_size, num_layers=1):
-        super().__init__()
-        self.base_model = base_model
-        layers = []
-        for _ in range(num_layers):
-            layers.append(nn.Linear(hidden_size, hidden_size))
-            layers.append(nn.Tanh())
-        layers.append(nn.Linear(hidden_size, 1))
-        self.value_head = nn.Sequential(*layers)
-
-    def forward(self, *args, output_hidden_states=True, return_dict=True, **kwargs):
-        outputs = self.base_model(
-            *args,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-            **kwargs
-        )
-        last_hidden = outputs.hidden_states[-1][:, -1, :]
-        outputs["values"] = self.value_head(last_hidden)
-        return outputs
 
 
 class PromptDataset(Dataset):
@@ -61,6 +40,16 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     actor = AutoModelForCausalLMWithValueHead.from_pretrained(model_name).to(device)
     ref_model = AutoModelForCausalLMWithValueHead.from_pretrained(model_name).to(device)
+    actor.generation_config     = actor.pretrained_model.generation_config
+    ref_model.generation_config = ref_model.pretrained_model.generation_config
+    actor.base_model_prefix     = actor.pretrained_model.base_model_prefix
+    ref_model.base_model_prefix = ref_model.pretrained_model.base_model_prefix
+    setattr(actor,
+            actor.base_model_prefix,
+            getattr(actor.pretrained_model, actor.base_model_prefix))
+    setattr(ref_model,
+            ref_model.base_model_prefix,
+            getattr(ref_model.pretrained_model, ref_model.base_model_prefix))
 
     ppo_config = PPOConfig(
         learning_rate=config.get("rl_learning_rate", 1e-5),
@@ -92,7 +81,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
                 prompt = prompt_map[(rec["id"], rec["mode"])]
                 toks = tokenizer(prompt, return_tensors="pt").to(device)
                 with torch.no_grad():
-                    base_out = actor.base_model(**toks,
+                    base_out = actor.pretrained_model(**toks,
                                                 output_hidden_states=True,
                                                 return_dict=True)
                 hidden = base_out.hidden_states[-1][:, -1, :]
@@ -118,7 +107,8 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         processing_class=tokenizer,
         model=actor,
         ref_model=ref_model,
-        reward_model=None,
+        value_model=actor,
+        reward_model=torch.nn.Identity().to(device),
         train_dataset=train_dataset,
         data_collator=lambda batch: tokenizer.pad(batch, return_tensors="pt")
     )
@@ -126,7 +116,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     # on-policy PPO via TRL’s helpers
     for epoch in range(config.get("rl_epochs", 3)):
         total_r, n_r = 0.0, 0
-        for batch in ppo_trainer.train_dataloader:
+        for batch in ppo_trainer.get_train_dataloader():
             # extract and move tensors
             prompts = batch.pop("prompt")
             batch = {k: v.to(device) for k, v in batch.items()}
