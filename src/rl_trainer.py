@@ -17,15 +17,24 @@ import copy
 
 
 class PromptDataset(Dataset):
-    def __init__(self, records, tokenizer):
+    def __init__(self, records, tokenizer, prompt_records=None):
         self.records = records
         self.tokenizer = tokenizer
+        # optionally build map from (id, mode) to prompt
+        if prompt_records is not None:
+            self.prompt_map = {(r["id"], r["mode"]): r["prompt"] for r in prompt_records}
+        else:
+            self.prompt_map = {}
 
     def __len__(self):
         return len(self.records)
 
     def __getitem__(self, idx):
-        prompt = self.records[idx]["prompt"]
+        rec = self.records[idx]
+        prompt = rec.get("prompt")
+        if prompt is None:
+            # fallback to prompt_map
+            prompt = self.prompt_map.get((rec["id"], rec["mode"]), "")
         return self.tokenizer(prompt, return_tensors="pt")
 
 def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
@@ -100,7 +109,11 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     # load prompts as a Dataset for PPOTrainer
     with open(args_path, "r") as f:
         args_records = json.load(f)
-    train_dataset = PromptDataset(args_records, tokenizer)
+    # load prompts.json to supply prompts if missing in args_records
+    prompts_path = os.path.join(exp_dir, config.get("prompts_file", "prompts.json"))
+    with open(prompts_path, "r") as f_p:
+        prompt_recs = json.load(f_p)
+    train_dataset = PromptDataset(args_records, tokenizer, prompt_recs)
 
     ppo_trainer = PPOTrainer(
         ppo_config,
