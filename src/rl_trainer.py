@@ -126,7 +126,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         value_model=actor,
         reward_model=torch.nn.Identity().to(device),
         train_dataset=train_dataset,
-        data_collator=lambda batch: tokenizer.pad(batch, return_tensors="pt")
+        data_collator=lambda batch: tokenizer.pad(batch, padding=True, truncation=True, return_tensors="pt")
     )
 
     # on-policy PPO via TRL’s helpers
