@@ -8,6 +8,7 @@ from src.data_loader import DataLoader
 from src.argumenter_prompt import build_argumenter_prompt
 from src.overseer import predict_overseer, load_overseer
 from src.oracle_labeler import oracle_label, load_oracle
+from src.rl_trainer import train
 
 def gen_prompts(data_path, output_path):
     loader = DataLoader(data_path)
@@ -98,6 +99,8 @@ def main():
     p3.add_argument("output_path")
     p3.add_argument("--overseer", default="gpt2", help="Overseer model identifier")
     p3.add_argument("--no-oracle", dest="oracle_enabled", action="store_false")
+    p4 = sub.add_parser("rl")
+    p4.add_argument("--config", help="Path to JSON config file")
     args = parser.parse_args()
     if args.config:
         config = load_config(args.config)
@@ -126,6 +129,11 @@ def main():
         generate_args(args.prompts_path, args.output_path, args.model)
     elif args.command == "eval":
         evaluate(args.args_path, args.output_path, args.overseer, args.oracle_enabled)
+    elif args.command == "rl":
+        config = load_config(args.config)
+        exp_dir = config["output_dir"]
+        os.makedirs(exp_dir, exist_ok=True)
+        train(config, exp_dir)
 
 if __name__ == "__main__":
     main()
