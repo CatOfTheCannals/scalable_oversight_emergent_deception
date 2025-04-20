@@ -17,7 +17,9 @@ class Argumenter:
             top_p=0.9,
             do_sample=True
         )
-        return self.tok.decode(outputs[0], skip_special_tokens=True)
+        # slice off prompt tokens: only return new text
+        gen_ids = outputs[0, inputs.input_ids.shape[-1]:]
+        return self.tok.decode(gen_ids, skip_special_tokens=True)
 
 def load_model(model_name: str) -> Argumenter:
     """Load an argumenter model by name."""
