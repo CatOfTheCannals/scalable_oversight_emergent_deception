@@ -1,6 +1,6 @@
-import json
+import yaml
 
 def load_config(path: str) -> dict:
-    """Load JSON configuration file."""
+    """Load YAML configuration file."""
     with open(path, "r") as f:
-        return json.load(f)
+        return yaml.safe_load(f)
