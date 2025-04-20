@@ -26,8 +26,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         learning_rate=config.get("rl_learning_rate", 1e-5),
         batch_size=config.get("rl_batch_size", 16),
         num_ppo_epochs=config.get("rl_epochs", 3),
-        clip_range=config.get("rl_clip_range", 0.2),
-        log_with=None
+        cliprange=config.get("rl_clip_range", 0.2)
     )
     ppo_trainer = PPOTrainer(ppo_config, model=actor, ref_model=ref_model, tokenizer=tokenizer)
 
