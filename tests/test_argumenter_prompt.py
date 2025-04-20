@@ -5,7 +5,7 @@ class TestArgumenterPrompt(unittest.TestCase):
     def test_build_basic(self):
         claim = "The sky is blue."
         evidences = ["Because of Rayleigh scattering.", "Light wavelength differences."]
-        prompt = build_argumenter_prompt(claim, evidences, mode="Sound")
+        prompt = build_argumenter_prompt(claim, evidences)
 
         # header
         self.assertTrue(prompt.startswith("Mode: Sound."))
@@ -17,7 +17,7 @@ class TestArgumenterPrompt(unittest.TestCase):
         self.assertTrue(prompt.strip().endswith("Argument:"))
 
     def test_empty_evidence(self):
-        prompt = build_argumenter_prompt("Any claim", [], mode="Spurious")
+        prompt = build_argumenter_prompt("Any claim", [])
         self.assertIn("You may answer “I don’t know”", prompt)
         # still has Claim and Argument lines
         self.assertIn("Claim: Any claim", prompt)
