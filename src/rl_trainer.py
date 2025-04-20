@@ -10,6 +10,19 @@ from src.argumenter import load_model
 from src.argumenter_prompt import build_argumenter_prompt
 from src.oracle_labeler import oracle_label
 from src.overseer import predict_overseer
+from torch.utils.data import Dataset
+
+class PromptDataset(Dataset):
+    def __init__(self, records, tokenizer):
+        self.records = records
+        self.tokenizer = tokenizer
+
+    def __len__(self):
+        return len(self.records)
+
+    def __getitem__(self, idx):
+        prompt = self.records[idx]["prompt"]
+        return self.tokenizer(prompt, return_tensors="pt")
 
 def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     """
@@ -28,13 +41,19 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         num_ppo_epochs=config.get("rl_epochs", 3),
         cliprange=config.get("rl_clip_range", 0.2)
     )
+    # load prompts as a Dataset for PPOTrainer
+    with open(args_path, "r") as f:
+        args_records = json.load(f)
+    train_dataset = PromptDataset(args_records, tokenizer)
+
     ppo_trainer = PPOTrainer(
         ppo_config,
         processing_class=tokenizer,
         model=actor,
         ref_model=ref_model,
         reward_model=None,
-        train_dataset=None
+        train_dataset=train_dataset,
+        data_collator=lambda batch: tokenizer.pad(batch, return_tensors="pt")
     )
 
     with open(args_path, "r") as f:
