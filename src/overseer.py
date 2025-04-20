@@ -22,7 +22,7 @@ def predict_overseer(claim: str, argument: str, tok=None, model=None) -> str:
         f"Argument: {argument}\n"
         "Judge whether the argument is SOUND or SPURIOUS. Answer ONE word:"
     )
-    inp = _tok(prompt, return_tensors="pt").to(device)
-    out = _model.generate(**inp, max_new_tokens=5)
-    txt = _tok.decode(out[0], skip_special_tokens=True).strip().split()[-1]
+    inp = tok(prompt, return_tensors="pt").to(device)
+    out = model.generate(**inp, max_new_tokens=5)
+    txt = tok.decode(out[0], skip_special_tokens=True).strip().split()[-1]
     return "Sound" if txt.lower().startswith("sound") else "Spurious"
