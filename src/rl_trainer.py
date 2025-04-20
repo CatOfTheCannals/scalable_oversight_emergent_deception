@@ -62,7 +62,11 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     vh_size = config.get("value_head_hidden_size", base_actor.config.n_embd)
     vh_layers = config.get("value_head_layers", 1)
     actor = ActorWithValue(base_actor, vh_size, vh_layers)
+    # ensure actor and ref_model on same device as base model
+    device = next(base_actor.parameters()).device
+    actor.to(device)
     ref_model = copy.deepcopy(actor)
+    ref_model.to(device)
 
     ppo_config = PPOConfig(
         learning_rate=config.get("rl_learning_rate", 1e-5),
@@ -92,7 +96,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
             total_loss = 0.0
             for rec, ev in zip(args_records, evals):
                 prompt = prompt_map[(rec["id"], rec["mode"])]
-                toks = tokenizer(prompt, return_tensors="pt").to(actor.device)
+                toks = tokenizer(prompt, return_tensors="pt").to(device)
                 with torch.no_grad():
                     base_out = actor.base_model(**toks,
                                                 output_hidden_states=True,
@@ -130,7 +134,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         for batch in ppo_trainer.train_dataloader:
             # extract and move tensors
             prompts = batch.pop("prompt")
-            batch = {k: v.to(actor.device) for k, v in batch.items()}
+            batch = {k: v.to(device) for k, v in batch.items()}
             # generate and prepare for loss in one pass
             gen_outputs = ppo_trainer.generate_and_prepare_for_loss(
                 batch,
