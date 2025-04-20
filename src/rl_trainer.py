@@ -120,6 +120,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
 
     # on-policy PPO via TRL’s helpers
     for epoch in range(config.get("rl_epochs", 3)):
+        total_r, n_r = 0.0, 0
         for batch in ppo_trainer.train_dataloader:
             # extract and move tensors
             prompts = batch.pop("prompt")
@@ -142,9 +143,13 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
                 1 if predict_overseer(p, a).lower() == "sound" else 0
                 for p, a in zip(prompts, arguments)
             ]
+            total_r += sum(rewards)
+            n_r += len(rewards)
             # PPO update
             ppo_trainer.step(gen_outputs, rewards)
 
+        avg_r = total_r / n_r if n_r > 0 else 0.0
+        print(f"[PPO] epoch {epoch} average reward (sound rate) = {avg_r:.3f}")
         # save epoch checkpoint
         ckpt = os.path.join(exp_dir, f"ppo_epoch{epoch}.pt")
         torch.save(actor.state_dict(), ckpt)
