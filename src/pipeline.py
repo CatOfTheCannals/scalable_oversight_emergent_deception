@@ -53,6 +53,7 @@ def generate_args(prompts_path, output_path, model_name):
             "id": rec["id"],
             "mode": rec["mode"],
             "model": model_name,
+            "prompt": rec["prompt"],
             "claim": rec["claim"],
             "human_exp": rec["human_exp"],
             "argument": arg_text
@@ -125,6 +126,10 @@ def main():
                 os.path.join(exp_dir, args_file),
                 config["argumenter_model"],
             )
+        if config.get("enable_rl", False):
+            args_path = os.path.join(exp_dir, args_file)
+            eval_path = os.path.join(exp_dir, eval_file)
+            train(config, exp_dir, args_path, eval_path)
         if config.get("enable_eval", True):
             evaluate(
                 os.path.join(exp_dir, args_file),
@@ -148,8 +153,10 @@ def main():
         exp_dir = config["output_dir"]
         os.makedirs(exp_dir, exist_ok=True)
         args_file = config.get("args_file", "arguments.json")
+        eval_file = config.get("eval_file", "evaluation.json")
         args_path = os.path.join(exp_dir, args_file)
-        train(config, exp_dir, args_path)
+        eval_path = os.path.join(exp_dir, eval_file)
+        train(config, exp_dir, args_path, eval_path)
 
 if __name__ == "__main__":
     main()

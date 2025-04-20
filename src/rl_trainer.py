@@ -11,14 +11,14 @@ from src.argumenter_prompt import build_argumenter_prompt
 from src.oracle_labeler import oracle_label
 from src.overseer import predict_overseer
 
-def train(config: dict, exp_dir: str, args_path: str):
+def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     """
-    Train the Argumenter via PPO using overseer rewards only.
-    args_path: Path to generated arguments JSON for RL fine-tuning.
+    Train the Argumenter via PPO using overseer rewards only based on previous outputs.
+    args_path: Path to generated arguments JSON.
+    eval_path: Path to evaluation JSON with overseer decisions.
     """
     model_name = config["argumenter_model"]
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    # TODO: in future commits we'll make these models be loaded from checkpoints
     actor = load_model(model_name).model
     ref_model = load_model(model_name).model
 
@@ -33,22 +33,20 @@ def train(config: dict, exp_dir: str, args_path: str):
     ppo_trainer = PPOTrainer(ppo_config, model=actor, ref_model=ref_model, tokenizer=tokenizer)
 
     with open(args_path, "r") as f:
-        samples = json.load(f)
+        args_records = json.load(f)
+    with open(eval_path, "r") as f:
+        eval_records = json.load(f)
 
-    for sample in samples:
-        # select evidences based on mode flag
-        if sample.used_ids:
-            evidences = [e["content"] for e in sample.evidences if e["evidence_id"] in sample.used_ids]
-        else:
-            evidences = [e["content"] for e in sample.evidences if e["evidence_id"] not in sample.used_ids]
-        prompt = build_argumenter_prompt(sample.claim, evidences)
-        query_tensors = tokenizer(prompt, return_tensors="pt").to(actor.device)
-        response_ids = ppo_trainer.generate(query_tensors, max_new_tokens=config.get("rl_max_new_tokens", 256))
-        gen_ids = response_ids[0, query_tensors.input_ids.shape[-1]:]
-        argument = tokenizer.decode(gen_ids, skip_special_tokens=True)
-
-        overseer_decision = predict_overseer(sample.claim, argument)
+    for rec, ev in zip(args_records, eval_records):
+        prompt = rec["prompt"]
+        argument = rec["argument"]
+        overseer_decision = ev["overseer"]
         reward = 1 if overseer_decision.lower() == "sound" else 0
+
+        # reconstruct tensors
+        query_tensors = tokenizer(prompt, return_tensors="pt").to(actor.device)
+        full_input = prompt + argument
+        response_ids = tokenizer(full_input, return_tensors="pt").to(actor.device).input_ids
 
         ppo_trainer.step(query_tensors, response_ids, reward)
 
