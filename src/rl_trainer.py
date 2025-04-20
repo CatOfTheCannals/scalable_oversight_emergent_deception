@@ -23,7 +23,7 @@ elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
     device = torch.device("mps")
 else:
     device = torch.device("cpu")
-    
+
 
 class PromptDataset(Dataset):
     def __init__(self, records, prompt_records=None):
@@ -63,6 +63,8 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     ref_model.generation_config = ref_model.pretrained_model.generation_config
     actor.base_model_prefix     = actor.pretrained_model.base_model_prefix
     ref_model.base_model_prefix = ref_model.pretrained_model.base_model_prefix
+    actor.config.return_dict     = True
+    ref_model.config.return_dict = True
     setattr(actor,
             actor.base_model_prefix,
             getattr(actor.pretrained_model, actor.base_model_prefix))
@@ -117,7 +119,6 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         actor.pretrained_model.train()
         actor.v_head.train()
 
-
     # load prompts as a Dataset for PPOTrainer
     with open(args_path, "r") as f:
         args_records = json.load(f)
@@ -126,7 +127,6 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     with open(prompts_path, "r") as f_p:
         prompt_recs = json.load(f_p)
     train_dataset = PromptDataset(args_records, prompt_recs)
-
 
     def data_collator(batch: list[str]):
         # batch is a list of raw prompt strings
@@ -150,48 +150,5 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         train_dataset=train_dataset,
         data_collator=data_collator,
     )
-    generation_kwargs = {
-        "max_new_tokens":    config.get("rl_max_new_tokens", 256),
-        "return_dict_in_generate": True,
-        "output_scores":     True,
-        "pad_token_id":      tokenizer.eos_token_id,
-    }
-
-    for epoch in range(config.get("rl_epochs", 3)):
-        total_r, n_r = 0.0, 0
-
-        for batch in ppo_trainer.get_train_dataloader():
-            batch.update(
-                {k: v.to(device) for k, v in batch.items() if torch.is_tensor(v)}
-            )
-            prompts = batch["prompt"]
-
-            # 1) generate with the actor model
-            response = actor.generate(
-                input_ids=batch['input_ids'],
-                attention_mask=batch['attention_mask'],
-                **generation_kwargs
-            )
-
-            # 2) extract only the newly generated tokens
-            new_tokens = response.sequences[:, batch['input_ids'].shape[-1]:]
-
-            # 3) compute rewards
-            arguments = tokenizer.batch_decode(new_tokens, skip_special_tokens=True)
-            rewards   = [
-                1 if predict_overseer(p, a).lower() == "sound" else 0
-                for p, a in zip(prompts, arguments)
-            ]
-            total_r += sum(rewards)
-            n_r     += len(rewards)
-
-            # 4) apply the PPO update
-            stats = ppo_trainer.step(batch['input_ids'], new_tokens, rewards)
-            ppo_trainer.log_stats(stats, batch, rewards)
-
-        avg_r = total_r / n_r if n_r > 0 else 0.0
-        print(f"[PPO] epoch {epoch} average reward = {avg_r:.3f}")
-        torch.save(actor.state_dict(), os.path.join(exp_dir, f"ppo_epoch{epoch}.pt"))
-
-    # final save
-    torch.save(actor.state_dict(), os.path.join(exp_dir, config.get("rl_output", "argumenter_rl.pt")))
+    ppo_trainer.train()                    # runs all epochs internally
+    ppo_trainer.save_model(exp_dir)        # saves the final model
