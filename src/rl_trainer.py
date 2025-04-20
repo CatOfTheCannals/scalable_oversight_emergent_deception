@@ -78,7 +78,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
             evals = json.load(f_e)
             args_records = json.load(f_a)
         optimizer = torch.optim.Adam(actor.value_head.parameters(),
-                                     lr=config.get("critic_lr", 1e-4))
+                                     lr=float(config.get("critic_lr", 1e-4)))
         mse_loss = torch.nn.MSELoss()
         # freeze base model, train only the critic head
         actor.base_model.eval()
