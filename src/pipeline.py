@@ -103,7 +103,11 @@ def main():
     p4.add_argument("--config", help="Path to JSON config file")
     args = parser.parse_args()
     if args.config:
-        config = load_config(args.config)
+        # Determine config path: allow experiment name shorthand
+        cfg_path = args.config
+        if not os.path.exists(cfg_path):
+            cfg_path = os.path.join("experiments", args.config, "config.yaml")
+        config = load_config(cfg_path)
         exp_dir = config["output_dir"]
         os.makedirs(exp_dir, exist_ok=True)
         prompts_file = config.get("prompts_file", "prompts.json")
