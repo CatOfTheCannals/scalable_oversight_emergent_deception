@@ -77,6 +77,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         processing_class=tokenizer,
         model=actor,
         ref_model=ref_model,
+        value_model=critic,
         reward_model=None,
         train_dataset=train_dataset,
         data_collator=lambda batch: tokenizer.pad(batch, return_tensors="pt")
