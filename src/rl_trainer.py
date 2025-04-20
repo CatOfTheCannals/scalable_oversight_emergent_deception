@@ -80,12 +80,12 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         with open(prompts_path, "r") as f_p:
             prompt_recs = json.load(f_p)
         prompt_map = {(r["id"], r["mode"]): r["prompt"] for r in prompt_recs}
-        optimizer = torch.optim.Adam(actor.value_head.parameters(),
+        optimizer = torch.optim.Adam(actor.v_head.parameters(),
                                      lr=float(config.get("critic_lr", 1e-4)))
         mse_loss = torch.nn.MSELoss()
         # freeze base model, train only the critic head
         actor.base_model.eval()
-        actor.value_head.train()
+        actor.v_head.train()
         for we in range(warmup_epochs):
             total_loss = 0.0
             for rec, ev in zip(args_records, evals):
@@ -96,7 +96,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
                                                 output_hidden_states=True,
                                                 return_dict=True)
                 hidden = base_out.hidden_states[-1][:, -1, :]
-                pred_v = actor.value_head(hidden)
+                pred_v = actor.v_head(hidden)
                 r = 1.0 if ev["overseer"].lower() == "sound" else 0.0
                 loss = mse_loss(pred_v.view(-1), torch.tensor([r],
                                          device=pred_v.device))
@@ -107,7 +107,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
             avg = total_loss / len(evals)
             print(f"[Warmup {we+1}/{warmup_epochs}] critic MSE={avg:.4f}")
         actor.base_model.train()
-        actor.value_head.train()
+        actor.v_head.train()
     # load prompts as a Dataset for PPOTrainer
     with open(args_path, "r") as f:
         args_records = json.load(f)
