@@ -19,6 +19,6 @@ rl_output: argumenter_rl.pt
 
 # Stage toggles
 enable_prompts: true
-enable_args: false
+enable_generate: false
 enable_eval: false
 enable_rl: false

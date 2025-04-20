@@ -111,7 +111,7 @@ def main():
         eval_file     = config.get("eval_file",     "evaluation.json")
         if config.get("enable_prompts", True):
             gen_prompts(config["data_path"], os.path.join(exp_dir, prompts_file))
-        if config.get("enable_args", True):
+        if config.get("enable_generate", True):
             generate_args(
                 os.path.join(exp_dir, prompts_file),
                 os.path.join(exp_dir, args_file),
