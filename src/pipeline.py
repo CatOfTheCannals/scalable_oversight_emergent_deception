@@ -51,6 +51,8 @@ def generate_args(prompts_path, output_path, model_name):
             "id": rec["id"],
             "mode": rec["mode"],
             "model": model_name,
+            "claim": rec["claim"],
+            "human_exp": rec["human_exp"],
             "argument": arg_text
         })
     with open(output_path, "w") as f:
