@@ -6,7 +6,7 @@ import os
 from src.config import load_config
 from src.data_loader import DataLoader
 from src.argumenter_prompt import build_argumenter_prompt
-from src.overseer import predict_overseer
+from src.overseer import predict_overseer, load_overseer
 from src.oracle_labeler import oracle_label
 
 def gen_prompts(data_path, output_path):
@@ -56,11 +56,12 @@ def generate_args(prompts_path, output_path, model_name):
         json.dump(outputs, f, indent=2)
 
 def evaluate(args_path, output_path, overseer_name, oracle_enabled=True):
+    tok, model = load_overseer(overseer_name)
     with open(args_path) as f:
         recs = json.load(f)
     results = []
     for rec in recs:
-        ov = predict_overseer(rec["claim"], rec["argument"])
+        ov = predict_overseer(rec["claim"], rec["argument"], tok, model)
         orc = None
         if oracle_enabled:
             orc = oracle_label(rec["argument"], rec["mode"], rec["human_exp"])

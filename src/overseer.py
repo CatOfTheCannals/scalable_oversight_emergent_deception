@@ -4,10 +4,19 @@ import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-_tok = AutoTokenizer.from_pretrained("gpt2")
-_model = AutoModelForCausalLM.from_pretrained("gpt2").to(device)
+_default_tok = AutoTokenizer.from_pretrained("gpt2")
+_default_model = AutoModelForCausalLM.from_pretrained("gpt2").to(device)
 
-def predict_overseer(claim: str, argument: str) -> str:
+def load_overseer(model_name: str):
+    """Load an overseer model by name."""
+    tok = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
+    return tok, model
+
+def predict_overseer(claim: str, argument: str, tok=None, model=None) -> str:
+    if tok is None or model is None:
+        tok = _default_tok
+        model = _default_model
     prompt = (
         f"Claim: {claim}\n"
         f"Argument: {argument}\n"
