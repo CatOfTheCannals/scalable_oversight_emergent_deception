@@ -18,7 +18,7 @@ rl_batch_size: 16
 rl_output: argumenter_rl.pt
 
 # Stage toggles
-enable_prompts: true
+enable_prompts: false
 enable_generate: false
-enable_eval: false
+enable_eval: true
 enable_rl: false
