@@ -16,3 +16,9 @@ eval_file: evaluation.json
 rl_epochs: 3
 rl_batch_size: 16
 rl_output: argumenter_rl.pt
+
+# Stage toggles
+enable_prompts: true
+enable_args: true
+enable_eval: true
+enable_rl: true

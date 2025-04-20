@@ -109,19 +109,22 @@ def main():
         prompts_file = config.get("prompts_file", "prompts.json")
         args_file     = config.get("args_file",     "arguments.json")
         eval_file     = config.get("eval_file",     "evaluation.json")
-        gen_prompts(config["data_path"], os.path.join(exp_dir, prompts_file))
-        generate_args(
-            os.path.join(exp_dir, prompts_file),
-            os.path.join(exp_dir, args_file),
-            config["argumenter_model"],
-        )
-        evaluate(
-            os.path.join(exp_dir, args_file),
-            os.path.join(exp_dir, eval_file),
-            config.get("overseer_model", "gpt2"),
-            config.get("oracle_enabled", True),
-            config.get("oracle_model")
-        )
+        if config.get("enable_prompts", True):
+            gen_prompts(config["data_path"], os.path.join(exp_dir, prompts_file))
+        if config.get("enable_args", True):
+            generate_args(
+                os.path.join(exp_dir, prompts_file),
+                os.path.join(exp_dir, args_file),
+                config["argumenter_model"],
+            )
+        if config.get("enable_eval", True):
+            evaluate(
+                os.path.join(exp_dir, args_file),
+                os.path.join(exp_dir, eval_file),
+                config.get("overseer_model", "gpt2"),
+                config.get("oracle_enabled", True),
+                config.get("oracle_model")
+            )
         return
     if args.command == "gen-prompts":
         gen_prompts(args.data_path, args.output_path)
