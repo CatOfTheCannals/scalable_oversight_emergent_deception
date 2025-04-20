@@ -62,6 +62,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     vh_size = config.get("value_head_hidden_size", base_actor.config.n_embd)
     vh_layers = config.get("value_head_layers", 1)
     actor = ActorWithValue(base_actor, vh_size, vh_layers)
+    actor.base_model_prefix = base_actor.base_model_prefix
     # ensure actor and ref_model on same device as base model
     device = next(base_actor.parameters()).device
     actor.to(device)
