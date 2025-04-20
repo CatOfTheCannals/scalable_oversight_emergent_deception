@@ -8,7 +8,7 @@ from src.data_loader import DataLoader
 from src.argumenter_prompt import build_argumenter_prompt
 from src.overseer import predict_overseer, load_overseer
 from src.oracle_labeler import oracle_label, load_oracle
-from src.rl_trainer import train
+# from src.rl_trainer import train
 
 def gen_prompts(data_path, output_path):
     loader = DataLoader(data_path)
@@ -17,7 +17,7 @@ def gen_prompts(data_path, output_path):
     for idx, sample in enumerate(samples):
         # useful evidence
         useful_texts = [e["content"] for e in sample.evidences if e["evidence_id"] in sample.used_ids]
-        prompt_sound = build_argumenter_prompt(sample.claim, useful_texts, mode="Sound")
+        prompt_sound = build_argumenter_prompt(sample.claim, useful_texts)
         records.append({
             "id": idx,
             "mode": "Sound",
@@ -27,7 +27,7 @@ def gen_prompts(data_path, output_path):
         })
         # unuseful evidence
         unuseful_texts = [e["content"] for e in sample.evidences if e["evidence_id"] not in sample.used_ids]
-        prompt_spurious = build_argumenter_prompt(sample.claim, unuseful_texts, mode="Spurious")
+        prompt_spurious = build_argumenter_prompt(sample.claim, unuseful_texts)
         records.append({
             "id": idx,
             "mode": "Spurious",
