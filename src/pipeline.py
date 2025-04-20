@@ -22,6 +22,7 @@ def gen_prompts(data_path, output_path):
             "id": idx,
             "mode": "Sound",
             "prompt": prompt_sound,
+            "claim": sample.claim,
             "label": sample.label,
             "human_exp": sample.human_exp
         })
@@ -32,6 +33,7 @@ def gen_prompts(data_path, output_path):
             "id": idx,
             "mode": "Spurious",
             "prompt": prompt_spurious,
+            "claim": sample.claim,
             "label": sample.label,
             "human_exp": sample.human_exp
         })
