@@ -12,6 +12,29 @@ from src.oracle_labeler import oracle_label
 from src.overseer import predict_overseer
 from torch.utils.data import Dataset
 import torch.nn as nn
+import copy
+
+class ActorWithValue(nn.Module):
+    def __init__(self, base_model, hidden_size, num_layers=1):
+        super().__init__()
+        self.base_model = base_model
+        layers = []
+        for _ in range(num_layers):
+            layers.append(nn.Linear(hidden_size, hidden_size))
+            layers.append(nn.Tanh())
+        layers.append(nn.Linear(hidden_size, 1))
+        self.value_head = nn.Sequential(*layers)
+
+    def forward(self, *args, output_hidden_states=True, return_dict=True, **kwargs):
+        outputs = self.base_model(
+            *args,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            **kwargs
+        )
+        last_hidden = outputs.hidden_states[-1][:, -1, :]
+        outputs["values"] = self.value_head(last_hidden)
+        return outputs
 
 class CriticModel(nn.Module):
     def __init__(self, base_model, hidden_size, num_layers=1):
@@ -54,12 +77,12 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     """
     model_name = config["argumenter_model"]
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    actor = load_model(model_name).model
-    ref_model = load_model(model_name).model
-    # build configurable value head on top of actor
-    vh_size = config.get("value_head_hidden_size", actor.config.n_embd)
+    base_actor = load_model(model_name).model
+    # stitch on the value head
+    vh_size = config.get("value_head_hidden_size", base_actor.config.n_embd)
     vh_layers = config.get("value_head_layers", 1)
-    critic = CriticModel(actor, vh_size, vh_layers)
+    actor = ActorWithValue(base_actor, vh_size, vh_layers)
+    ref_model = copy.deepcopy(actor)
 
     ppo_config = PPOConfig(
         learning_rate=config.get("rl_learning_rate", 1e-5),
@@ -77,30 +100,43 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         processing_class=tokenizer,
         model=actor,
         ref_model=ref_model,
-        value_model=critic,
-        reward_model=None,
         train_dataset=train_dataset,
         data_collator=lambda batch: tokenizer.pad(batch, return_tensors="pt")
     )
 
-    with open(args_path, "r") as f:
-        args_records = json.load(f)
-    with open(eval_path, "r") as f:
-        eval_records = json.load(f)
+    # on-policy PPO via TRL’s helpers
+    for epoch in range(config.get("rl_epochs", 3)):
+        for batch in ppo_trainer.train_dataloader:
+            # extract and move tensors
+            prompts = batch.pop("prompt")
+            batch = {k: v.to(actor.device) for k, v in batch.items()}
+            # generate and prepare for loss in one pass
+            gen_outputs = ppo_trainer.generate_and_prepare_for_loss(
+                batch,
+                max_new_tokens=config.get("rl_max_new_tokens", 256),
+                return_dict_in_generate=True,
+                output_scores=True,
+                pad_token_id=tokenizer.eos_token_id
+            )
+            # decode just the new tokens
+            arguments = tokenizer.batch_decode(
+                gen_outputs.sequences[:, batch["input_ids"].shape[-1]:],
+                skip_special_tokens=True
+            )
+            # compute rewards via overseer
+            rewards = [
+                1 if predict_overseer(p, a).lower() == "sound" else 0
+                for p, a in zip(prompts, arguments)
+            ]
+            # PPO update
+            ppo_trainer.step(gen_outputs, rewards)
 
-    for rec, ev in zip(args_records, eval_records):
-        prompt = rec["prompt"]
-        argument = rec["argument"]
-        overseer_decision = ev["overseer"]
-        reward = 1 if overseer_decision.lower() == "sound" else 0
+        # save epoch checkpoint
+        ckpt = os.path.join(exp_dir, f"ppo_epoch{epoch}.pt")
+        torch.save(actor.state_dict(), ckpt)
+        print(f"Epoch {epoch} complete, checkpoint saved to {ckpt}")
 
-        # reconstruct tensors
-        query_tensors = tokenizer(prompt, return_tensors="pt").to(actor.device)
-        full_input = prompt + argument
-        response_ids = tokenizer(full_input, return_tensors="pt").to(actor.device).input_ids
-
-        ppo_trainer.step(query_tensors, response_ids, reward)
-
-    output_path = os.path.join(exp_dir, config.get("rl_output", "argumenter_rl.pt"))
-    torch.save(actor.state_dict(), output_path)
-    print(f"RL model saved to {output_path}")
+    # final checkpoint
+    final = os.path.join(exp_dir, config.get("rl_output", "argumenter_rl.pt"))
+    torch.save(actor.state_dict(), final)
+    print(f"Final RL model saved to {final}")
