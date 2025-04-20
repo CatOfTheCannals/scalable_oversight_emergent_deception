@@ -67,7 +67,11 @@ def evaluate(args_path, output_path, overseer_name, oracle_enabled=True, oracle_
         ov = predict_overseer(rec["claim"], rec["argument"], tok, model)
         orc = None
         if oracle_enabled:
-            orc = oracle_label(rec["argument"], rec["mode"], rec["human_exp"])
+            orc = oracle_label(rec["argument"],
+                              rec["mode"],
+                              rec["human_exp"],
+                              o_tok,
+                              o_model)
         results.append({
             "id": rec["id"],
             "mode": rec["mode"],
