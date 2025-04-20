@@ -16,6 +16,9 @@ eval_file: evaluation.json
 rl_epochs: 3
 rl_batch_size: 16
 rl_output: argumenter_rl.pt
+rl_learning_rate: 1e-05
+rl_clip_range: 0.2
+rl_max_new_tokens: 256
 
 # Stage toggles
 enable_prompts: false
