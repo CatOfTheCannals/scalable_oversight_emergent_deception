@@ -24,4 +24,4 @@ rl_max_new_tokens: 256
 enable_prompts: false
 enable_generate: false
 enable_eval: true
-enable_rl: false
+enable_rl: true
