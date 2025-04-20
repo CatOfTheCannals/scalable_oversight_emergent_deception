@@ -77,6 +77,11 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         with open(eval_path, "r") as f_e, open(args_path, "r") as f_a:
             evals = json.load(f_e)
             args_records = json.load(f_a)
+        # load prompts mapping for warmup
+        prompts_path = os.path.join(exp_dir, config.get("prompts_file", "prompts.json"))
+        with open(prompts_path, "r") as f_p:
+            prompt_recs = json.load(f_p)
+        prompt_map = {(r["id"], r["mode"]): r["prompt"] for r in prompt_recs}
         optimizer = torch.optim.Adam(actor.value_head.parameters(),
                                      lr=float(config.get("critic_lr", 1e-4)))
         mse_loss = torch.nn.MSELoss()
@@ -86,7 +91,8 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         for we in range(warmup_epochs):
             total_loss = 0.0
             for rec, ev in zip(args_records, evals):
-                toks = tokenizer(rec["prompt"], return_tensors="pt").to(actor.device)
+                prompt = prompt_map[(rec["id"], rec["mode"])]
+                toks = tokenizer(prompt, return_tensors="pt").to(actor.device)
                 with torch.no_grad():
                     base_out = actor.base_model(**toks,
                                                 output_hidden_states=True,
