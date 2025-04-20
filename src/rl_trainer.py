@@ -17,6 +17,7 @@ def train(config: dict, exp_dir: str):
     """
     model_name = config["argumenter_model"]
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # TODO: in future commits we'll make these models be loaded from checkpoints
     actor = load_model(model_name).model
     ref_model = load_model(model_name).model
 
