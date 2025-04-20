@@ -1,0 +1,18 @@
+data_path: data/first_three_claims.json
+output_dir: experiments/sample1
+
+# Model identifiers
+argumenter_model: gpt2
+overseer_model: gpt2
+oracle_model: gpt2
+oracle_enabled: true
+
+# Filenames for each stage (defaults handled by pipeline)
+prompts_file: prompts.json
+args_file: arguments.json
+eval_file: evaluation.json
+
+# RL training parameters
+rl_epochs: 3
+rl_batch_size: 16
+rl_output: argumenter_rl.pt
