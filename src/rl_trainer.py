@@ -84,7 +84,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
                                      lr=float(config.get("critic_lr", 1e-4)))
         mse_loss = torch.nn.MSELoss()
         # freeze base model, train only the critic head
-        actor.base_model.eval()
+        actor.pretrained_model.eval()
         actor.v_head.train()
         for we in range(warmup_epochs):
             total_loss = 0.0
@@ -106,7 +106,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
                 total_loss += loss.item()
             avg = total_loss / len(evals)
             print(f"[Warmup {we+1}/{warmup_epochs}] critic MSE={avg:.4f}")
-        actor.base_model.train()
+        actor.pretrained_model.train()
         actor.v_head.train()
     # load prompts as a Dataset for PPOTrainer
     with open(args_path, "r") as f:
