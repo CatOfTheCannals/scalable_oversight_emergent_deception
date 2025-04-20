@@ -7,7 +7,7 @@ from src.config import load_config
 from src.data_loader import DataLoader
 from src.argumenter_prompt import build_argumenter_prompt
 from src.overseer import predict_overseer, load_overseer
-from src.oracle_labeler import oracle_label
+from src.oracle_labeler import oracle_label, load_oracle
 
 def gen_prompts(data_path, output_path):
     loader = DataLoader(data_path)
@@ -55,7 +55,10 @@ def generate_args(prompts_path, output_path, model_name):
     with open(output_path, "w") as f:
         json.dump(outputs, f, indent=2)
 
-def evaluate(args_path, output_path, overseer_name, oracle_enabled=True):
+def evaluate(args_path, output_path, overseer_name, oracle_enabled=True, oracle_model=None):
+    # load oracle model if specified
+    o_tok, o_model = (load_oracle(oracle_model)
+                      if oracle_model else (None, None))
     tok, model = load_overseer(overseer_name)
     with open(args_path) as f:
         recs = json.load(f)
@@ -110,6 +113,7 @@ def main():
             os.path.join(exp_dir, eval_file),
             config.get("overseer_model", "gpt2"),
             config.get("oracle_enabled", True),
+            config.get("oracle_model")
         )
         return
     if args.command == "gen-prompts":
