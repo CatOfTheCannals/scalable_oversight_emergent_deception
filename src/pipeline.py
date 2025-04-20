@@ -134,7 +134,8 @@ def main():
                 config.get("oracle_model")
             )
         if config.get("enable_rl", False):
-            train(config, exp_dir)
+            args_path = os.path.join(exp_dir, args_file)
+            train(config, exp_dir, args_path)
         return
     if args.command == "gen-prompts":
         gen_prompts(args.data_path, args.output_path)
@@ -146,7 +147,9 @@ def main():
         config = load_config(args.config)
         exp_dir = config["output_dir"]
         os.makedirs(exp_dir, exist_ok=True)
-        train(config, exp_dir)
+        args_file = config.get("args_file", "arguments.json")
+        args_path = os.path.join(exp_dir, args_file)
+        train(config, exp_dir, args_path)
 
 if __name__ == "__main__":
     main()

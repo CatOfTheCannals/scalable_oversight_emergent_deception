@@ -5,15 +5,16 @@ import os
 import torch
 from trl import PPOTrainer, PPOConfig
 from transformers import AutoTokenizer
-from src.data_loader import DataLoader
+import json
 from src.argumenter import load_model
 from src.argumenter_prompt import build_argumenter_prompt
 from src.oracle_labeler import oracle_label
 from src.overseer import predict_overseer
 
-def train(config: dict, exp_dir: str):
+def train(config: dict, exp_dir: str, args_path: str):
     """
     Train the Argumenter via PPO using overseer rewards only.
+    args_path: Path to generated arguments JSON for RL fine-tuning.
     """
     model_name = config["argumenter_model"]
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -31,8 +32,8 @@ def train(config: dict, exp_dir: str):
     )
     ppo_trainer = PPOTrainer(ppo_config, model=actor, ref_model=ref_model, tokenizer=tokenizer)
 
-    loader = DataLoader(config["data_path"])
-    samples = loader.load()
+    with open(args_path, "r") as f:
+        samples = json.load(f)
 
     for epoch in range(config.get("rl_epochs", 3)):
         for sample in samples:
