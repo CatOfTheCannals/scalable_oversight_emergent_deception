@@ -13,7 +13,7 @@ args_file: arguments.json
 eval_file: evaluation.json
 
 # RL training parameters
-rl_epochs: 3
+rl_epochs: 1
 rl_batch_size: 16
 rl_output: argumenter_rl.pt
 rl_learning_rate: 1e-05
@@ -23,11 +23,11 @@ rl_max_new_tokens: 256
 value_head_hidden_size: 768
 value_head_layers: 1
 # Critic warmup configuration
-value_warmup_epochs: 2
+value_warmup_epochs: 1
 critic_lr: 1e-4
 
 # Stage toggles
 enable_prompts: false
 enable_generate: false
-enable_eval: true
+enable_eval: false
 enable_rl: true
