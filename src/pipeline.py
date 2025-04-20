@@ -2,6 +2,8 @@
 
 import json
 import argparse
+import os
+from src.config import load_config
 from src.data_loader import DataLoader
 from src.argumenter_prompt import build_argumenter_prompt
 from src.overseer import predict_overseer
@@ -74,6 +76,7 @@ def evaluate(args_path, output_path, overseer_name, oracle_enabled=True):
 
 def main():
     parser = argparse.ArgumentParser(description="Argumenter–Overseer Pipeline")
+    parser.add_argument("--config", help="Path to JSON config file")
     sub = parser.add_subparsers(dest="command")
     p1 = sub.add_parser("gen-prompts")
     p1.add_argument("data_path")
@@ -88,6 +91,26 @@ def main():
     p3.add_argument("--overseer", default="gpt2", help="Overseer model identifier")
     p3.add_argument("--no-oracle", dest="oracle_enabled", action="store_false")
     args = parser.parse_args()
+    if args.config:
+        config = load_config(args.config)
+        exp_dir = config["output_dir"]
+        os.makedirs(exp_dir, exist_ok=True)
+        prompts_file = config.get("prompts_file", "prompts.json")
+        args_file     = config.get("args_file",     "arguments.json")
+        eval_file     = config.get("eval_file",     "evaluation.json")
+        gen_prompts(config["data_path"], os.path.join(exp_dir, prompts_file))
+        generate_args(
+            os.path.join(exp_dir, prompts_file),
+            os.path.join(exp_dir, args_file),
+            config["argumenter_model"],
+        )
+        evaluate(
+            os.path.join(exp_dir, args_file),
+            os.path.join(exp_dir, eval_file),
+            config.get("overseer_model", "gpt2"),
+            config.get("oracle_enabled", True),
+        )
+        return
     if args.command == "gen-prompts":
         gen_prompts(args.data_path, args.output_path)
     elif args.command == "gen-args":
