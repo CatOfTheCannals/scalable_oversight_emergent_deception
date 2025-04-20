@@ -8,7 +8,7 @@ from src.data_loader import DataLoader
 from src.argumenter_prompt import build_argumenter_prompt
 from src.overseer import predict_overseer, load_overseer
 from src.oracle_labeler import oracle_label, load_oracle
-# from src.rl_trainer import train
+from src.rl_trainer import train
 
 def gen_prompts(data_path, output_path):
     loader = DataLoader(data_path)
