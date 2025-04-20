@@ -23,7 +23,6 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     ref_model = load_model(model_name).model
 
     ppo_config = PPOConfig(
-        model_name=model_name,
         learning_rate=config.get("rl_learning_rate", 1e-5),
         batch_size=config.get("rl_batch_size", 16),
         ppo_epochs=config.get("rl_epochs", 3),
