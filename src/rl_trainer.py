@@ -3,7 +3,7 @@
 
 import os
 import torch
-from trl import PPOTrainer, PPOConfig
+from trl import PPOTrainer, PPOConfig, AutoModelForCausalLMWithValueHead
 from transformers import AutoTokenizer
 import json
 from src.argumenter import load_model
@@ -57,22 +57,10 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     """
     model_name = config["argumenter_model"]
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    base_actor = load_model(model_name).model
-    # stitch on the value head
-    vh_size = config.get("value_head_hidden_size", base_actor.config.n_embd)
-    vh_layers = config.get("value_head_layers", 1)
-    actor = ActorWithValue(base_actor, vh_size, vh_layers)
-    actor.base_model_prefix = base_actor.base_model_prefix
-    # ensure actor and ref_model on same device as base model
-    device = next(base_actor.parameters()).device
-    actor.to(device)
-    ref_model = copy.deepcopy(actor)
-    ref_model.to(device)
-    # Inherit config and generation settings from base model so PPOTrainer can access them
-    actor.config = base_actor.config
-    actor.generation_config = base_actor.generation_config
-    ref_model.config = actor.config
-    ref_model.generation_config = actor.generation_config
+    # load base and reference models with built-in value head
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    actor = AutoModelForCausalLMWithValueHead.from_pretrained(model_name).to(device)
+    ref_model = AutoModelForCausalLMWithValueHead.from_pretrained(model_name).to(device)
 
     ppo_config = PPOConfig(
         learning_rate=config.get("rl_learning_rate", 1e-5),
