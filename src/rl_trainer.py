@@ -45,6 +45,9 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     """
     model_name = config["argumenter_model"]
     tokenizer = AutoTokenizer.from_pretrained(model_name)
+    # ensure pad_token set for data_collator
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
     # load base and reference models with built-in value head
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     actor = AutoModelForCausalLMWithValueHead.from_pretrained(model_name).to(device)
