@@ -17,6 +17,14 @@ import copy
 from transformers import DataCollatorWithPadding
 
 
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+    
+
 class PromptDataset(Dataset):
     def __init__(self, records, prompt_records=None):
         # records: list of {"id":…, "mode":…, maybe "prompt":…}
@@ -49,7 +57,6 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     # load base and reference models with built-in value head
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     actor = AutoModelForCausalLMWithValueHead.from_pretrained(model_name).to(device)
     ref_model = AutoModelForCausalLMWithValueHead.from_pretrained(model_name).to(device)
     actor.generation_config     = actor.pretrained_model.generation_config
@@ -109,6 +116,8 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
             print(f"[Warmup {we+1}/{warmup_epochs}] critic MSE={avg:.4f}")
         actor.pretrained_model.train()
         actor.v_head.train()
+
+
     # load prompts as a Dataset for PPOTrainer
     with open(args_path, "r") as f:
         args_records = json.load(f)
@@ -152,21 +161,20 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
         total_r, n_r = 0.0, 0
 
         for batch in ppo_trainer.get_train_dataloader():
-            prompts = batch.pop("prompt")
-            input_ids      = batch["input_ids"].to(device)
-            attention_mask = batch.get("attention_mask")
-            if attention_mask is not None:
-                attention_mask = attention_mask.to(device)
+            batch.update(
+                {k: v.to(device) for k, v in batch.items() if torch.is_tensor(v)}
+            )
+            prompts = batch["prompt"]
 
             # 1) generate with the actor model
             response = actor.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
+                input_ids=batch['input_ids'],
+                attention_mask=batch['attention_mask'],
                 **generation_kwargs
             )
 
             # 2) extract only the newly generated tokens
-            new_tokens = response.sequences[:, input_ids.shape[-1]:]
+            new_tokens = response.sequences[:, batch['input_ids'].shape[-1]:]
 
             # 3) compute rewards
             arguments = tokenizer.batch_decode(new_tokens, skip_special_tokens=True)
@@ -178,7 +186,7 @@ def train(config: dict, exp_dir: str, args_path: str, eval_path: str):
             n_r     += len(rewards)
 
             # 4) apply the PPO update
-            stats = ppo_trainer.step(input_ids, new_tokens, rewards)
+            stats = ppo_trainer.step(batch['input_ids'], new_tokens, rewards)
             ppo_trainer.log_stats(stats, batch, rewards)
 
         avg_r = total_r / n_r if n_r > 0 else 0.0
