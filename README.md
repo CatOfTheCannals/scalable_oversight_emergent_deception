@@ -1,4 +1,4 @@
-# POC Scalable Oversigt Emergent Deception (CHECKWHY) [WIP]
+# POC Scalable Oversight Emergent Deception (CHECKWHY) [WIP]
 
 > **Work in progress:** this pipeline currently has known issues and may not run end‑to‑end.
 
