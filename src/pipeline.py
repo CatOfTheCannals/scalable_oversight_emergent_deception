@@ -127,9 +127,9 @@ def main():
                 config["argumenter_model"],
             )
         if config.get("enable_rl", False):
-            args_path = os.path.join(exp_dir, args_file)
-            eval_path = os.path.join(exp_dir, eval_file)
-            train(config, exp_dir, args_path, eval_path)
+            args_path    = os.path.join(exp_dir, args_file)
+            prompts_path = os.path.join(exp_dir, config.get("prompts_file", "prompts.json"))
+            train(config, exp_dir, args_path, prompts_path)
         if config.get("enable_eval", True):
             evaluate(
                 os.path.join(exp_dir, args_file),
